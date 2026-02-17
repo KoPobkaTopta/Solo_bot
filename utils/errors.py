@@ -7,8 +7,8 @@ from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import ExceptionTypeFilter
 from aiogram.types import BufferedInputFile, ErrorEvent
 from aiogram.utils.markdown import hbold
-
 from config import ADMIN_ID
+
 from database import async_session_maker
 from logger import logger
 
@@ -117,6 +117,19 @@ def setup_error_handlers(dp: Dispatcher) -> None:
                 return True
 
         logger.exception(f"Update: {event.update}\nException: {event.exception}")
+
+        try:
+            from handlers.forum_topics.event_logger import log_error
+
+            exc_text_forum = str(event.exception)[:500]
+            async with async_session_maker() as forum_session:
+                await log_error(
+                    bot, forum_session,
+                    error_text=exc_text_forum,
+                    context=f"Update #{event.update.update_id}",
+                )
+        except Exception:
+            pass
 
         if not ADMIN_ID:
             return True

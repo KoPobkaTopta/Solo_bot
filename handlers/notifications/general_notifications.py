@@ -1,13 +1,12 @@
 import asyncio
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
 import pytz
-from aiogram import Bot, Router
-from sqlalchemy import select, text, update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from aiogram import Bot, Router
 from config import (
     NOTIFICATION_TIME,
     NOTIFY_10H_ENABLED,
@@ -22,6 +21,9 @@ from config import (
     NOTIFY_RENEW_EXPIRED,
     TRIAL_TIME_DISABLE,
 )
+from sqlalchemy import select, text, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 from core.bootstrap import MODES_CONFIG, NOTIFICATIONS_CONFIG
 from database import (
     add_notification,
@@ -76,15 +78,15 @@ class NotificationContext:
     bot: Bot
     session: AsyncSession
     current_time: int
-    preload_data: Optional[dict] = None
-    bulk_updates: Optional[dict] = None
+    preload_data: dict | None = None
+    bulk_updates: dict | None = None
 
     def get_balance(self, tg_id: int) -> float:
         if self.preload_data and tg_id in self.preload_data.get("balances_cache", {}):
             return self.preload_data["balances_cache"][tg_id]
         return 0.0
 
-    def get_tariff(self, tariff_id: int) -> Optional[dict]:
+    def get_tariff(self, tariff_id: int) -> dict | None:
         if self.preload_data and tariff_id in self.preload_data.get("tariffs_cache", {}):
             return self.preload_data["tariffs_cache"][tariff_id]
         return None
@@ -226,6 +228,13 @@ async def send_expired_notification(ctx: NotificationContext, key, delay_minutes
     else:
         message_text = KEY_EXPIRED_NO_DELAY_MSG.format(email=email)
 
+    try:
+        from handlers.forum_topics.event_logger import log_key_expired
+
+        await log_key_expired(ctx.bot, ctx.session, tg_id, email)
+    except Exception:
+        pass
+
     keyboard = build_notification_kb(email)
     return await send_notification(ctx.bot, tg_id, "notify_expired.jpg", message_text, keyboard)
 
@@ -269,6 +278,17 @@ async def send_renewed_notification(ctx: NotificationContext, key, tariff: dict,
         subgroup_title=tariff.get("subgroup_title", ""),
     )
 
+    try:
+        from handlers.forum_topics.event_logger import log_key_renewed
+
+        await log_key_renewed(
+            ctx.bot, ctx.session,
+            tg_id=tg_id, email=email,
+            tariff_name=tariff.get("name"), auto=True,
+        )
+    except Exception:
+        pass
+
     keyboard = build_notification_expired_kb()
     result = await send_notification(ctx.bot, tg_id, "notify_expired.jpg", message_text, keyboard)
 
@@ -280,7 +300,7 @@ async def send_renewed_notification(ctx: NotificationContext, key, tariff: dict,
     return result
 
 
-async def try_auto_renew(ctx: NotificationContext, key) -> tuple[bool, Optional[dict], Optional[int]]:
+async def try_auto_renew(ctx: NotificationContext, key) -> tuple[bool, dict | None, int | None]:
     tg_id = key.tg_id
     email = key.email or ""
     renew_notification_id = f"{email}_renew"
@@ -554,6 +574,13 @@ async def handle_expired_keys(ctx: NotificationContext, keys: list):
                     await delete_key_from_cluster(server_id, email, client_id, ctx.session)
                     await delete_key(ctx.session, client_id)
                     logger.info(f"🗑 Ключ {client_id} для пользователя {tg_id} успешно удалён.")
+
+                    try:
+                        from handlers.forum_topics.event_logger import log_key_deleted
+
+                        await log_key_deleted(ctx.bot, ctx.session, tg_id, email, reason="истечение срока")
+                    except Exception:
+                        pass
 
                     await send_deleted_notification(ctx, key)
                 except Exception as error:

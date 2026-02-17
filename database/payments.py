@@ -46,6 +46,22 @@ async def add_payment(
         logger.info(
             f"Добавлен платёж id={internal_id}: tg_id={tg_id}, amount={amount}, system={payment_system}, status={status}"
         )
+
+        if status == "success":
+            try:
+                from handlers.forum_topics.event_logger import log_payment
+                from bot import bot
+
+                await log_payment(
+                    bot, session,
+                    tg_id=tg_id,
+                    amount=amount,
+                    payment_system=payment_system,
+                    currency=currency,
+                )
+            except Exception:
+                pass
+
         return internal_id
     except SQLAlchemyError as e:
         await session.rollback()

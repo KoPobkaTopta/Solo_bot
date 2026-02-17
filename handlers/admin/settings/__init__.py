@@ -1,6 +1,7 @@
 from aiogram import Router
 
 from filters.admin import IsSuperAdminFilter
+from handlers.forum_topics.admin_settings import router as settings_forum_router
 
 from .settings_buttons import router as settings_buttons_router
 from .settings_cashboxes import router as settings_cashboxes_router
@@ -21,3 +22,4 @@ router.include_router(settings_panels_router)
 router.include_router(settings_notifications_router)
 router.include_router(settings_modes_router)
 router.include_router(settings_tariffs_router)
+router.include_router(settings_forum_router)
