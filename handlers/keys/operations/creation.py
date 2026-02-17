@@ -2,10 +2,11 @@ import asyncio
 
 from datetime import datetime
 
+from config import PUBLIC_LINK, REMNAWAVE_LOGIN, REMNAWAVE_PASSWORD, SUPERNODE
+from panels.remnawave import RemnawaveAPI, get_vless_link_for_remnawave_by_username
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import PUBLIC_LINK, REMNAWAVE_LOGIN, REMNAWAVE_PASSWORD, SUPERNODE
 from database import filter_cluster_by_subgroup, filter_cluster_by_tariff, get_servers, get_tariff_by_id, store_key
 from database.models import User
 from handlers.utils import ALLOWED_GROUP_CODES, check_server_key_limit
@@ -16,7 +17,6 @@ from logger import (
     PANEL_XUI,
 )
 from panels._3xui import ClientConfig, add_client, get_xui_instance
-from panels.remnawave import RemnawaveAPI, get_vless_link_for_remnawave_by_username
 
 from .aggregated_links import make_aggregated_link
 
@@ -291,6 +291,21 @@ async def create_key_on_cluster(
             )
             await session.execute(update(User).where(User.tg_id == tg_id, User.trial.in_([0, -1])).values(trial=1))
             await session.commit()
+
+            try:
+                from bot import bot as _bot
+                from handlers.forum_topics.event_logger import log_key_created
+
+                tariff_name = tariff.get("name") if tariff else None
+                await log_key_created(
+                    _bot, session,
+                    tg_id=tg_id, email=email,
+                    tariff_name=tariff_name,
+                    server_name=server_id_to_store,
+                    is_trial=is_trial,
+                )
+            except Exception:
+                pass
 
     except Exception as e:
         logger.error(f"Ошибка при создании ключа: {e}")

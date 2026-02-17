@@ -6,6 +6,7 @@ from .admin import router as admin_router
 from .captcha import router as captcha_router
 from .coupons import router as coupons_router
 from .donate import router as donate_router
+from .forum_topics import router as forum_topics_router
 from .instructions import router as instructions_router
 from .keys import router as keys_router
 from .notifications import router as notifications_router
@@ -31,4 +32,5 @@ router.include_routers(
     admin_router,
     refferal_router,
     tariff_router,
+    forum_topics_router,
 )

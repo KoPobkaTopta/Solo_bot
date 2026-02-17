@@ -82,6 +82,14 @@ def build_settings_kb() -> InlineKeyboardMarkup:
     )
 
     builder.adjust(2, 2, 2)
+
+    builder.row(
+        InlineKeyboardButton(
+            text="🗂 Топики",
+            callback_data=AdminPanelCallback(action="settings_forum").pack(),
+        )
+    )
+
     builder.row(build_admin_back_btn())
 
     return builder.as_markup()

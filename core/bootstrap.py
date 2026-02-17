@@ -3,6 +3,7 @@ from database.db import warm_pool
 from database.tariffs import initialize_all_tariff_weights
 
 from .settings.buttons_config import BUTTONS_CONFIG, load_buttons_config, update_buttons_config
+from .settings.forum_config import FORUM_CONFIG, load_forum_config, update_forum_config
 from .settings.management_config import MANAGEMENT_CONFIG, load_management_config, update_management_config
 from .settings.modes_config import MODES_CONFIG, load_modes_config, update_modes_config
 from .settings.money_config import MONEY_CONFIG, load_money_config, update_money_config
@@ -24,4 +25,5 @@ async def bootstrap() -> None:
         await load_money_config(session)
         await load_management_config(session)
         await load_tariffs_config(session)
+        await load_forum_config(session)
         await session.commit()
